@@ -1,21 +1,12 @@
-import { Sequelize } from "sequelize";
-
-const sequelizer = new Sequelize("chat-app","postgres", process.env.PG_PASSWORD, {
-    dialect: "postgres",  
-    host: "localhost"
-});
+import mongoose from "mongoose";
 
 const assertDatabaseConnectionOk = async ()=> {
-    console.log(`Checking database connection...`);
     try {
-        await sequelizer.authenticate();
-        await sequelizer.sync({ alter: true});
-        console.log("Database connection OK!");
+        await mongoose.connect(process.env.MONGOURI!);
+        console.log("connected to db");
     } catch (error) {
-        console.log("Unable to connect to the database:");
-        console.log(error)
-        process.exit(1);
+        console.error("Error connecting to database: ", error);
     }
 };
 
-export { sequelizer, assertDatabaseConnectionOk };
+export { assertDatabaseConnectionOk };
