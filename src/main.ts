@@ -1,9 +1,12 @@
 import express from "express";
 import http from "http";
-import { Server } from "socket.io";
 import dotenv from "dotenv";
-import { assertDatabaseConnectionOk } from "./db/connect";
 import jwt from "jsonwebtoken";
+import { Server } from "socket.io";
+
+import { assertDatabaseConnectionOk } from "./db/connect";
+import { Message } from "./schema/messageSchema";
+import IMessage from "./type/messageType";
 
 
 const app = express();
@@ -32,26 +35,30 @@ dotenv.config({
     } catch (err) {
       next(new Error('Authentication error: Invalid token'));
     }
-  });
+  }); 
   
   io.on("connection", (socket) => {
     console.log("A user connected");
   
-    socket.on("message", (msg) => {
-      // !TODO save message to database
-      // !TODO send message to the recipient
-  
-      console.log("Message received: ", msg);
-      socket.emit("random", msg + " " + Math.random());
+    socket.on("message", async (msg:IMessage) => {
+      console.log(msg);
+      try {
+        const message = new Message({...msg})
+        await message.save()
+        console.log("Message received: ", msg);
+        socket.emit("random", msg + " " + Math.random());
+      } catch (err) {
+        console.log(err);
+      }
     });
   
     socket.on("disconnect", () => {
       console.log("A user disconnected");
     });
   });
+  // await new Message({ name: 'Alice', age: 25 }).save();
 
 })();
-
 
 
 server.listen(port, () => {
