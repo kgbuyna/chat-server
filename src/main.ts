@@ -4,7 +4,8 @@ import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
 
-import { assertDatabaseConnectionOk } from "./db/connect";
+
+import { assertDatabaseConnectionOk, assertRedisConnectionOk } from "./db/connect";
 import { Message } from "./schema/messageSchema";
 import IMessage from "./type/messageType";
 
@@ -20,6 +21,7 @@ dotenv.config({
  
 (async()=> {
   await assertDatabaseConnectionOk();
+  const redisClient = await assertRedisConnectionOk()
 
   io.use((socket, next) => {
     const token = socket.handshake.auth.token;
@@ -39,14 +41,30 @@ dotenv.config({
   
   io.on("connection", (socket) => {
     console.log("A user connected");
-  
+    // @ts-ignore
+    const userId = socket.userId;
+
+    if (redisClient) {
+      redisClient.sAdd(`user:${userId}:sockets`, socket.id);
+    }
+
     socket.on("message", async (msg:IMessage) => {
-      console.log(msg);
       try {
-        const message = new Message({...msg})
+        // @ts-ignore
+        const userId = socket.userId;
+        const recipientId = msg.message_to
+        
+        const socketIds = await redisClient?.sMembers(`user:${recipientId}:sockets`) || []
+
+        socketIds.forEach(socketId => {
+          io.to(socketId).emit("message", msg.content);
+        }); 
+
+        const message = new Message({...msg, message_from: userId});
         await message.save()
+
         console.log("Message received: ", msg);
-        socket.emit("random", msg + " " + Math.random());
+
       } catch (err) {
         console.log(err);
       }
@@ -56,8 +74,6 @@ dotenv.config({
       console.log("A user disconnected");
     });
   });
-  // await new Message({ name: 'Alice', age: 25 }).save();
-
 })();
 
 
