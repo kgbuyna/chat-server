@@ -21,10 +21,10 @@ dotenv.config({
  
 (async()=> {
   await assertDatabaseConnectionOk();
-  const redisClient = await assertRedisConnectionOk()
 
   io.use((socket, next) => {
-    const token = socket.handshake.auth.token;
+    console.log(socket.handshake);
+    const token = socket.handshake.auth?.token || socket.handshake.headers?.token;
     if (!token) {
       return next(new Error('Authentication error: No token provided'));
     }
@@ -43,27 +43,23 @@ dotenv.config({
     console.log("A user connected");
     // @ts-ignore
     const userId = socket.userId;
-
-    if (redisClient) {
-      redisClient.sAdd(`user:${userId}:sockets`, socket.id);
-    }
+    socket.join(userId!);
 
     socket.on("message", async (msg:IMessage) => {
       try {
         // @ts-ignore
         const userId = socket.userId;
-        const recipientId = msg.message_to
-        
-        const socketIds = await redisClient?.sMembers(`user:${recipientId}:sockets`) || []
-
-        socketIds.forEach(socketId => {
-          io.to(socketId).emit("message", msg.content);
-        }); 
+        const recipientId = msg.message_to;
+                
+        // sending message to sender as sender can have more than one device or tab opened in browser 
+        socket.to(userId!).to(recipientId).emit("message", {
+          content: msg.content,
+          message_from: userId,
+          to: recipientId,
+        });
 
         const message = new Message({...msg, message_from: userId});
         await message.save()
-
-        console.log("Message received: ", msg);
 
       } catch (err) {
         console.log(err);
