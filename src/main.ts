@@ -8,18 +8,28 @@ import { Server } from "socket.io";
 import { assertDatabaseConnectionOk, assertRedisConnectionOk } from "./db/connect";
 import { Message } from "./schema/messageSchema";
 import IMessage from "./type/messageType";
-
+import { createAdapter } from "@socket.io/redis-adapter";
+import { createClient } from "redis";
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const port = 8000;
 
+const pubClient = createClient({ url: 'redis://localhost:6379' });
+const subClient = pubClient.duplicate();
+
+pubClient.on('error', (err) => console.error('Redis Pub Client Error', err));
+subClient.on('error', (err) => console.error('Redis Sub Client Error', err));
+
 dotenv.config({
   path: `${__dirname}/.env`
 });
  
 (async()=> {
+  await pubClient.connect();
+  await subClient.connect();
+  io.adapter(createAdapter(pubClient, subClient));
   await assertDatabaseConnectionOk();
 
   io.use((socket, next) => {
@@ -49,6 +59,9 @@ dotenv.config({
       try {
         // @ts-ignore
         const userId = socket.userId;
+        // @ts-ignore
+        console.log("userid", userId!);
+        console.log("object", msg);
         const recipientId = msg.message_to;
                 
         // sending message to sender as sender can have more than one device or tab opened in browser 
@@ -72,7 +85,6 @@ dotenv.config({
   });
 })();
 
-
-server.listen(port, () => {
-  console.log(`Server running on http://localhost:${port}`);
+server.listen(process.env.PORT || port, () => {
+  console.log(`Server running on http://localhost:${process.env.PORT || port}`);
 });
