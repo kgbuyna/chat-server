@@ -3,13 +3,16 @@ import http from "http";
 import dotenv from "dotenv";
 import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
-
-
-import { assertDatabaseConnectionOk, assertRedisConnectionOk } from "./db/connect";
-import { Message } from "./schema/messageSchema";
-import IMessage from "./type/messageType";
+import { Socket } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { createClient } from "redis";
+
+
+import { assertDatabaseConnectionOk } from "./db/connect";
+import saveMessage from "./service/saveMessageService";
+
+import IMessage from "./type/messageType";
+
 
 const app = express();
 const server = http.createServer(app);
@@ -29,13 +32,16 @@ dotenv.config({
 (async()=> {
   await pubClient.connect();
   await subClient.connect();
+
   io.adapter(createAdapter(pubClient, subClient));
+  
   await assertDatabaseConnectionOk();
 
   io.use((socket, next) => {
+    console.log("hmmm");
     console.log(socket.handshake);
     const token = socket.handshake.auth?.token || socket.handshake.headers?.token;
-    if (!token) {
+    if (!token) { 
       return next(new Error('Authentication error: No token provided'));
     }
   
@@ -56,33 +62,27 @@ dotenv.config({
     socket.join(userId!);
 
     socket.on("message", async (msg:IMessage) => {
-      try {
-        // @ts-ignore
-        const userId = socket.userId;
-        // @ts-ignore
-        console.log("userid", userId!);
-        console.log("object", msg);
-        const recipientId = msg.message_to;
-                
-        // sending message to sender as sender can have more than one device or tab opened in browser 
-        socket.to(userId!).to(recipientId).emit("message", {
-          content: msg.content,
-          message_from: userId,
-          to: recipientId,
-        });
+      // @ts-ignore
+      const userId = socket.userId;
+      const recipientId = msg.message_to;
+      console.log("userid", userId!); 
+      console.log("object", msg);
 
-        const message = new Message({...msg, message_from: userId});
-        await message.save()
+      socket.to(userId!).to(recipientId).emit("message", {
+        content: msg.content,
+        message_from: userId,
+        to: recipientId,
+      });
 
-      } catch (err) {
-        console.log(err);
-      }
+      await saveMessage({...msg, message_from: userId!});
     });
   
     socket.on("disconnect", () => {
       console.log("A user disconnected");
+      socket.leave(userId!);
     });
   });
+
 })();
 
 server.listen(process.env.PORT || port, () => {

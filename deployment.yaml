@@ -1,0 +1,52 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chat-server
+  labels:
+    app: chat-server
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chat-server
+  template:
+    metadata:
+      labels:
+        app: chat-server
+    spec:
+      containers:
+        - name: chat-server
+          image: pro-image/chat-server
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: chat-server-secret
+                  key: mongodb_url
+            - name: JWT_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: chat-server-secret
+                  key: jwt_secret
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: chat-server-service
+  labels:
+    name: chat-server-service
+spec:
+  type: ClusterIP
+  clusterIP: 10.99.3.109
+  ports:
+    - port: 8000
+      targetPort: 8000
+  selector:
+    app: chat-server
+
+
