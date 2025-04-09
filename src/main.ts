@@ -12,6 +12,7 @@ import { assertDatabaseConnectionOk } from "./db/connect";
 import saveMessage from "./service/saveMessageService";
 
 import IMessage from "./type/messageType";
+import messageRouter from "./router/messageRouter";
 
 
 const app = express();
@@ -38,7 +39,6 @@ dotenv.config({
   await assertDatabaseConnectionOk();
 
   io.use((socket, next) => {
-    console.log("hmmm");
     console.log(socket.handshake);
     const token = socket.handshake.auth?.token || socket.handshake.headers?.token;
     if (!token) { 
@@ -84,6 +84,10 @@ dotenv.config({
   });
 
 })();
+
+// req.headers["x-user-id"] = (decodedToken as jwt.JwtPayload).id!;
+
+app.use("/messages", messageRouter);
 
 server.listen(process.env.PORT || port, () => {
   console.log(`Server running on http://localhost:${process.env.PORT || port}`);

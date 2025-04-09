@@ -18,4 +18,5 @@ EXPOSE 8000
 
 # Define the command to start the application
 # CMD ["sh", "-c", "PORT=8000 npm run dev & PORT=8001 npm run dev & PORT=8002 npm run dev"]
-CMD ["sh", "-c", "npm run dev"]
+# CMD ["sh", "-c", "npm run dev"]
+CMD ["sh", "-c", "npm run build & npm run start"]
