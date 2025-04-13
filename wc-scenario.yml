@@ -1,0 +1,33 @@
+# my-scenario.yml
+config:
+  target: "http://localhost:8000"
+  socketio:
+    extraHeaders:
+      x-user-id: 'artillery'
+
+  payload:
+    # path is relative to the location of the test script
+    path: 'output.csv'
+    skipHeader: true
+    fields:
+      - 'recipientId'
+      - 'senderId'
+      - 'content'
+  phases:
+    - duration: 60
+      arrivalRate: 10
+  engines:
+   socketio-v3: {}
+
+scenarios:
+  - name: My sample scenario
+    engine: socketio-v3
+    flow:
+      - think: 1
+      - emit:
+          channel: "message"
+          data:
+            recipientId: '{{ recipientId }}'
+            senderId: '{{ senderId }}'
+            content: '{{ content }}'
+      - think: 30

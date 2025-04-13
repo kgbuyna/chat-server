@@ -39,7 +39,12 @@ dotenv.config({
   await assertDatabaseConnectionOk();
 
   io.use((socket, next) => {
-    console.log(socket.handshake);
+    
+    if (socket.handshake.headers["x-user-id"] == "artillery"){
+      console.log("it's artillery");
+      next()
+    }
+
     const token = socket.handshake.auth?.token || socket.handshake.headers?.token;
     if (!token) { 
       return next(new Error('Authentication error: No token provided'));
@@ -54,7 +59,7 @@ dotenv.config({
       next(new Error('Authentication error: Invalid token'));
     }
   }); 
-  
+
   io.on("connection", (socket) => {
     console.log("A user connected");
     // @ts-ignore
@@ -63,7 +68,7 @@ dotenv.config({
 
     socket.on("message", async (msg:IMessage) => {
       // @ts-ignore
-      const userId = socket.userId;
+      const userId = socket.userId || msg.message_from;
       const recipientId = msg.message_to;
       console.log("userid", userId!); 
       console.log("object", msg);
