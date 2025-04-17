@@ -7,20 +7,24 @@ import { Socket } from "socket.io";
 import { createAdapter } from "@socket.io/redis-adapter";
 import { createClient } from "redis";
 
-
 import { assertDatabaseConnectionOk } from "./db/connect";
 import saveMessage from "./service/saveMessageService";
 
 import IMessage from "./type/messageType";
 import messageRouter from "./router/messageRouter";
 
-
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 const port = 8000;
 
-const pubClient = createClient({ url: 'redis://localhost:6379' });
+const pubClient = createClient({
+  socket: {
+    host: process.env.REDIS_HOST || 'localhost',
+    port: Number(process.env.REDIS_PORT) || 6379,
+  },
+});
+
 const subClient = pubClient.duplicate();
 
 pubClient.on('error', (err) => console.error('Redis Pub Client Error', err));
@@ -39,24 +43,23 @@ dotenv.config({
   await assertDatabaseConnectionOk();
 
   io.use((socket, next) => {
-    
     if (socket.handshake.headers["x-user-id"] == "artillery"){
       console.log("it's artillery");
       next()
-    }
-
-    const token = socket.handshake.auth?.token || socket.handshake.headers?.token;
-    if (!token) { 
-      return next(new Error('Authentication error: No token provided'));
-    }
-  
-    try {
-      const decoded = jwt.verify(token, process.env.SECRET!) as { id: string; username: string };
-      // @ts-ignore
-      socket.userId = decoded.id 
-      next();
-    } catch (err) {
-      next(new Error('Authentication error: Invalid token'));
+    } else {
+      const token = socket.handshake.auth?.token || socket.handshake.headers?.token;
+      if (!token) { 
+        return next(new Error('Authentication error: No token provided'));
+      }
+    
+      try {
+        const decoded = jwt.verify(token, process.env.SECRET!) as { id: string; username: string };
+        // @ts-ignore
+        socket.userId = decoded.id 
+        next();
+      } catch (err) {
+        next(new Error('Authentication error: Invalid token'));
+      }
     }
   }); 
 
@@ -89,8 +92,6 @@ dotenv.config({
   });
 
 })();
-
-// req.headers["x-user-id"] = (decodedToken as jwt.JwtPayload).id!;
 
 app.use("/messages", messageRouter);
 
