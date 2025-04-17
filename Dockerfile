@@ -13,10 +13,9 @@ RUN npm install --only=production
 # Copy the rest of the application files
 COPY . .
 
+RUN rm -rf dist && npm run build
 # Expose the port the app runs on
 EXPOSE 8000
 
 # Define the command to start the application
-# CMD ["sh", "-c", "PORT=8000 npm run dev & PORT=8001 npm run dev & PORT=8002 npm run dev"]
-# CMD ["sh", "-c", "npm run dev"]
-CMD ["sh", "-c", "npm run build & npm run start"]
+CMD ["npm", "run", "start"]
