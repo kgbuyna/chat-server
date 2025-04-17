@@ -39,12 +39,6 @@ dotenv.config({
   await assertDatabaseConnectionOk();
 
   io.use((socket, next) => {
-    
-    if (socket.handshake.headers["x-user-id"] == "artillery"){
-      console.log("it's artillery");
-      next()
-    }
-
     const token = socket.handshake.auth?.token || socket.handshake.headers?.token;
     if (!token) { 
       return next(new Error('Authentication error: No token provided'));
